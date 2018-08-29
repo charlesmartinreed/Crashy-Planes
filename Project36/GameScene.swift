@@ -7,17 +7,27 @@
 //
 
 import SpriteKit
+import GameplayKit
 
 class GameScene: SKScene {
     
     //MARK:- Properties
     var player: SKSpriteNode!
     
+    var scoreLabel: SKLabelNode!
+    var score = 0 {
+        didSet {
+            scoreLabel.text = "SCORE: \(score)"
+        }
+    }
+    
+    
     override func didMove(to view: SKView) {
         createPlayer()
         createSky()
         createBackground()
         createGround()
+        startRocks()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -26,6 +36,17 @@ class GameScene: SKScene {
     
     //MARK:- COMPOSED METHODS
     //This means "make each method do one small thing, then combine those things togther as needed"
+    
+    func createScore() {
+        scoreLabel = SKLabelNode(fontNamed: "Optima-ExtraBlack")
+        scoreLabel.fontSize = 24
+        
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
+        scoreLabel.text = "SCORE: 0"
+        scoreLabel.fontColor = UIColor.black
+        
+        addChild(scoreLabel)
+    }
     
     func createPlayer() {
         //create a sprite node - using a texture because we'll be animating the plane by swapping out images to make it appear that the propeller is turning
@@ -112,5 +133,68 @@ class GameScene: SKScene {
             
             ground.run(moveForever)
         }
+    }
+    
+    func createRocks() {
+        //Create top and bottom rock sprites. The top one is rotated and flipped horizontally.
+        let rockTexture = SKTexture(imageNamed: "rock")
+        
+        let topRock = SKSpriteNode(texture: rockTexture)
+        topRock.zRotation = .pi
+        //stretch the sprite, horiztontally. Here, we stretch the sprite by -100%, which inverts it.
+        topRock.xScale = -1.0
+        
+        let bottomRock = SKSpriteNode(texture: rockTexture)
+        
+        topRock.zPosition = -20
+        bottomRock.zPosition = -20
+        
+        //Create a third sprite that is a large red rectangle (will make invisible later), positioned after the rocks and used to track when the player has passed through the rocks safely. Touch the rectangle, scroe a point.
+        let rockCollision = SKSpriteNode(color: UIColor.red, size: CGSize(width: 32, height: frame.height))
+        rockCollision.name = "scoreDetect"
+        
+        addChild(topRock)
+        addChild(bottomRock)
+        addChild(rockCollision)
+        
+        
+        //Use GKRandomDistribution to generate a random number in a range. Used to determine a safe gap for where the rocks should be.
+        let xPosition = frame.width + topRock.frame.width
+        
+        let max = Int(frame.height / 3)
+        let rand = GKRandomDistribution(lowestValue: -50, highestValue: max)
+        let yPosition = CGFloat(rand.nextInt())
+        
+        //adjust this to smaller value for more difficult game
+        let rockDistance: CGFloat = 70
+        
+        //Position the rocks just off the right edge of the screen, then animate them across to the left edge. Remove from game once they exceed the left edge.
+        topRock.position = CGPoint(x: xPosition, y: yPosition + topRock.size.height + rockDistance)
+        bottomRock.position = CGPoint(x: xPosition, y: yPosition - rockDistance)
+        rockCollision.position = CGPoint(x: xPosition + (rockCollision.size.width), y: frame.midY)
+        
+        let endPosition = frame.width + (topRock.frame.width * 2)
+        
+        let moveAction = SKAction.moveBy(x: -endPosition, y: 0, duration: 6.2)
+        let moveSequence = SKAction.sequence([moveAction, SKAction.removeFromParent()])
+        topRock.run(moveSequence)
+        bottomRock.run(moveSequence)
+        rockCollision.run(moveSequence)
+        
+    }
+    
+    func startRocks() {
+        //we want rocks to be created every few seconds, continuously until the player dies.
+        let create = SKAction.run {
+            [unowned self] in
+            self.createRocks()
+        }
+        
+        //we'll have a brief waiting period between creating new rocks
+        let wait = SKAction.wait(forDuration: 3)
+        let sequence = SKAction.sequence([create, wait])
+        let repeatForever = SKAction.repeatForever(sequence)
+        
+        run(repeatForever)
     }
 }
