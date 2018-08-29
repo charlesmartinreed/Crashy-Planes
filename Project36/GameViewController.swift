@@ -21,6 +21,9 @@ class GameViewController: UIViewController {
                 // Set the scale mode to scale to fit the window
                 scene.scaleMode = .aspectFill
                 
+                //set the scale mode so that items appear the same size as the scene they're dropped into. This means they won't scale according to the device they're being played on.
+                //scene.scaleMode = .resizeFill
+                
                 // Present the scene
                 view.presentScene(scene)
             }
