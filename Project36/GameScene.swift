@@ -154,7 +154,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for i in 0 ... 1 {
             let ground = SKSpriteNode(texture: groundTexture)
             ground.zPosition = -10
-            ground.position = CGPoint(x: (groundTexture.size().width / 2 + (groundTexture.size().width * CGFloat(i))), y: groundTexture.size().height / 2)
+            ground.position = CGPoint(x: (groundTexture.size().width / 2.0 + (groundTexture.size().width * CGFloat(i))), y: groundTexture.size().height / 2)
             
             //add physics for the ground
             ground.physicsBody = SKPhysicsBody(texture: ground.texture!, size: ground.texture!.size())
@@ -176,18 +176,33 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let rockTexture = SKTexture(imageNamed: "rock")
         
         let topRock = SKSpriteNode(texture: rockTexture)
+        
+        //Physics for the topRock
+        topRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: rockTexture.size())
+        topRock.physicsBody?.isDynamic = false
+        
         topRock.zRotation = .pi
         //stretch the sprite, horiztontally. Here, we stretch the sprite by -100%, which inverts it.
         topRock.xScale = -1.0
         
         let bottomRock = SKSpriteNode(texture: rockTexture)
         
+        //Physics for the bottomRock
+        topRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: rockTexture.size())
+        topRock.physicsBody?.isDynamic = false
         topRock.zPosition = -20
         bottomRock.zPosition = -20
         
         //Create a third sprite that is a large red rectangle (will make invisible later), positioned after the rocks and used to track when the player has passed through the rocks safely. Touch the rectangle, scroe a point.
         let rockCollision = SKSpriteNode(color: UIColor.red, size: CGSize(width: 32, height: frame.height))
+        
+        //Physics for the score detection flag
+        rockCollision.physicsBody = SKPhysicsBody(rectangleOf: rockCollision.size)
+        rockCollision.physicsBody?.isDynamic = false
+        
         rockCollision.name = "scoreDetect"
+        
+        
         
         addChild(topRock)
         addChild(bottomRock)
@@ -207,7 +222,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         //Position the rocks just off the right edge of the screen, then animate them across to the left edge. Remove from game once they exceed the left edge.
         topRock.position = CGPoint(x: xPosition, y: yPosition + topRock.size.height + rockDistance)
         bottomRock.position = CGPoint(x: xPosition, y: yPosition - rockDistance)
-        rockCollision.position = CGPoint(x: xPosition + (rockCollision.size.width), y: frame.midY)
+        rockCollision.position = CGPoint(x: xPosition + (rockCollision.size.width * 2), y: frame.midY)
         
         let endPosition = frame.width + (topRock.frame.width * 2)
         
@@ -233,4 +248,46 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         run(repeatForever)
     }
-}
+    
+    //MARK: - Contact detection
+    func didBegin(_ contact: SKPhysicsContact) {
+        //check if they player hit the score node
+        if contact.bodyA.node?.name == "scoreDetect" || contact.bodyB.node?.name == "scoreDetect" {
+            if contact.bodyA.node == player {
+                //if the player hits it, remove the score detection from the node tree
+                contact.bodyB.node?.removeFromParent()
+            } else {
+                //the score detection node collided with the player, which is not what we want, so remove the player
+                contact.bodyA.node?.removeFromParent()
+            }
+            
+            let sound = SKAction.playSoundFileNamed("coin.wav", waitForCompletion: false)
+            run(sound)
+            
+            score += 1
+            
+            //this is here because we want to destroy the player if they collide with ANYTHING ELSE
+            return
+        }
+        
+        //prevents the bodyA hits bodyB AND bodyB hits bodyA problem. This way, when the scoreDetect node is set to nil after initial collision, we'll return if the system registers a secondary hit.
+        guard contact.bodyA.node != nil && contact.bodyB.node != nil else { return }
+        
+        //we'll only hit this code if what we made contact with wasn't a scoreDetect rectangle
+        if contact.bodyA.node == player || contact.bodyB.node == player {
+            if let explosion = SKEmitterNode(fileNamed: "PlayerExplosion") {
+                explosion.position = player.position
+                addChild(explosion)
+            }
+            
+            let sound = SKAction.playSoundFileNamed("explosion.wav", waitForCompletion: false)
+            run(sound)
+            
+            player.removeFromParent()
+            //inherited by everything in our scene, determins how fast actions attached to a node should run. Realtime is 1.0, twice as fast is 2.0.
+            //this has the effect of halting all those move actions we added to create our scrolling effect
+            speed = 0
+        }
+        
+        }
+    }

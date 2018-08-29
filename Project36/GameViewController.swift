@@ -32,6 +32,8 @@ class GameViewController: UIViewController {
             
             view.showsFPS = true
             view.showsNodeCount = true
+            //This enables SpriteKit to draw faint blue lines around our game physics
+            view.showsPhysics = true
         }
     }
 
