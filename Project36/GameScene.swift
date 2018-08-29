@@ -9,6 +9,13 @@
 import SpriteKit
 import GameplayKit
 
+//MARK:- Game state Enumerator
+enum GameState {
+    case showingLogo
+    case playing
+    case dead
+}
+
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //MARK:- Properties
@@ -21,8 +28,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    var backgroundMusic: SKAudioNode!
+    
+    var logo: SKSpriteNode!
+    var gameOver: SKSpriteNode!
+    
+    var gameState = GameState.showingLogo
     
     override func didMove(to view: SKView) {
+        //start up the background music
+        if let musicURL = Bundle.main.url(forResource: "music", withExtension: "m4a") {
+            backgroundMusic = SKAudioNode(url: musicURL)
+            
+            //since this is a node, remember that we have to add this like we would any other resource
+            addChild(backgroundMusic)
+        }
+        
         //set up the gravity and establish the scene as a messenger for contact events
         physicsWorld.gravity = CGVector(dx: 0.0, dy: -5.0)
         physicsWorld.contactDelegate = self
@@ -31,19 +52,63 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         createSky()
         createBackground()
         createGround()
-        startRocks()
         createScore()
+        createLogos()
+    }
+    
+    func createLogos() {
+        logo = SKSpriteNode(imageNamed: "logo")
+        //placing it in the middle of the screen
+        logo.position = CGPoint(x: frame.midX, y: frame.midY)
+        addChild(logo)
+        
+        gameOver = SKSpriteNode(imageNamed: "gameover")
+        gameOver.position = CGPoint(x: frame.midX, y: frame.midY)
+        //make it invisible at the outset of the game
+        gameOver.alpha = 0
+        addChild(gameOver)
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        //neutralize any existing velocity the player might have between touches
-        player.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
         
-        //push the player upward by 20 points each tap
-        player.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 20))
+        //we're going to switch over our gamestate to determine how to set up our scene at a given point
+        switch gameState {
+        case .showingLogo:
+            gameState = .playing
+            
+            let fadeOut = SKAction.fadeOut(withDuration: 0.5)
+            let remove = SKAction.removeFromParent()
+            let wait = SKAction.wait(forDuration: 0.5)
+            let activatePlayer = SKAction.run {
+                [unowned self] in
+                self.player.physicsBody?.isDynamic = true
+                self.startRocks()
+            }
+            
+            let sequence = SKAction.sequence([fadeOut, wait, activatePlayer, remove])
+            logo.run(sequence)
+            
+        case .playing:
+            //neutralize any existing velocity the player might have between touches
+            player.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+            
+            //push the player upward by 20 points each tap
+            player.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 20))
+            
+        case .dead:
+            //we want to start up a new game. Create a new scene and animate the presentation
+            let scene = GameScene(fileNamed: "GameScene")!
+            let transition = SKTransition.moveIn(with: .right, duration: 1)
+            self.view?.presentScene(scene, transition: transition)
+        }
+        
+       
     }
     
     override func update(_ currentTime: TimeInterval) {
+        //because the player not be called when this updates
+        guard player != nil else { return }
+        
         //tilt the plane in a given direction as the player taps the screen
         let value = player.physicsBody!.velocity.dy * 0.001
         let rotate = SKAction.rotate(byAngle: value, duration: 0.1)
@@ -83,8 +148,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         //since the plane will bounce off of nothing, this means that we'll be notified when the player hits ANYTHING.
         player.physicsBody!.contactTestBitMask = player.physicsBody!.collisionBitMask
         
-        //ensures that the plane will respond to physics
-        player.physicsBody?.isDynamic = true
+        //ensures that the plane will not respond to physics at outset of game; physics enabled and disabled according to GameState value
+        player.physicsBody?.isDynamic = false
         
         //this would prevent the plane from bouncing off of objects; collide instead
         player.physicsBody?.collisionBitMask = 0
@@ -282,6 +347,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             let sound = SKAction.playSoundFileNamed("explosion.wav", waitForCompletion: false)
             run(sound)
+            
+            //player is dead tasks
+            gameOver.alpha = 1
+            gameState = .dead
+            backgroundMusic.run(SKAction.stop())
             
             player.removeFromParent()
             //inherited by everything in our scene, determins how fast actions attached to a node should run. Realtime is 1.0, twice as fast is 2.0.
