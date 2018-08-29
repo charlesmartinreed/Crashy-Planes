@@ -9,7 +9,7 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
     //MARK:- Properties
     var player: SKSpriteNode!
@@ -23,15 +23,32 @@ class GameScene: SKScene {
     
     
     override func didMove(to view: SKView) {
+        //set up the gravity and establish the scene as a messenger for contact events
+        physicsWorld.gravity = CGVector(dx: 0.0, dy: -5.0)
+        physicsWorld.contactDelegate = self
+        
         createPlayer()
         createSky()
         createBackground()
         createGround()
         startRocks()
+        createScore()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        //do
+        //neutralize any existing velocity the player might have between touches
+        player.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        
+        //push the player upward by 20 points each tap
+        player.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 20))
+    }
+    
+    override func update(_ currentTime: TimeInterval) {
+        //tilt the plane in a given direction as the player taps the screen
+        let value = player.physicsBody!.velocity.dy * 0.001
+        let rotate = SKAction.rotate(byAngle: value, duration: 0.1)
+        
+        player.run(rotate)
     }
     
     //MARK:- COMPOSED METHODS
@@ -56,6 +73,21 @@ class GameScene: SKScene {
         player.position = CGPoint(x: frame.width / 6, y: frame.height * 0.75)
         
         addChild(player)
+        
+        //setting up the physics for the player instance
+        //create pixel-perfect physics using plane sprite
+        player.physicsBody = SKPhysicsBody(texture: playerTexture, size: playerTexture.size())
+        
+        //tell us whenever the plane collides with anything
+        //contact means two things touched, collision means two things BOUNCED OFF of each other
+        //since the plane will bounce off of nothing, this means that we'll be notified when the player hits ANYTHING.
+        player.physicsBody!.contactTestBitMask = player.physicsBody!.collisionBitMask
+        
+        //ensures that the plane will respond to physics
+        player.physicsBody?.isDynamic = true
+        
+        //this would prevent the plane from bouncing off of objects; collide instead
+        player.physicsBody?.collisionBitMask = 0
         
         //animating our player sprite - set to 0.01, which is faster than our screen draws so we're basically saying "as quickly as possible"
         let frame2 = SKTexture(imageNamed: "player-2")
@@ -123,6 +155,10 @@ class GameScene: SKScene {
             let ground = SKSpriteNode(texture: groundTexture)
             ground.zPosition = -10
             ground.position = CGPoint(x: (groundTexture.size().width / 2 + (groundTexture.size().width * CGFloat(i))), y: groundTexture.size().height / 2)
+            
+            //add physics for the ground
+            ground.physicsBody = SKPhysicsBody(texture: ground.texture!, size: ground.texture!.size())
+            ground.physicsBody?.isDynamic = false
             
             addChild(ground)
             
