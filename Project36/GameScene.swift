@@ -17,6 +17,7 @@ class GameScene: SKScene {
         createPlayer()
         createSky()
         createBackground()
+        createGround()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -89,6 +90,27 @@ class GameScene: SKScene {
             
             //loop the animation endlessly
             background.run(moveForever)
+        }
+    }
+    
+    func createGround() {
+        //needs to have zPosition of -10 and a similar movement logic to the mountains. Can't adjust the anchor point since this screws with the physics and we need consistent physics for the collision detection.
+        
+        let groundTexture = SKTexture(imageNamed: "ground")
+        
+        for i in 0 ... 1 {
+            let ground = SKSpriteNode(texture: groundTexture)
+            ground.zPosition = -10
+            ground.position = CGPoint(x: (groundTexture.size().width / 2 + (groundTexture.size().width * CGFloat(i))), y: groundTexture.size().height / 2)
+            
+            addChild(ground)
+            
+            let moveLeft = SKAction.moveBy(x: -groundTexture.size().width, y: 0, duration: 5)
+            let moveReset = SKAction.moveBy(x: groundTexture.size().width, y: 0, duration: 0)
+            let moveLoop = SKAction.sequence([moveLeft, moveReset])
+            let moveForever = SKAction.repeatForever(moveLoop)
+            
+            ground.run(moveForever)
         }
     }
 }
