@@ -15,6 +15,8 @@ class GameScene: SKScene {
     
     override func didMove(to view: SKView) {
         createPlayer()
+        createSky()
+        createBackground()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -40,5 +42,53 @@ class GameScene: SKScene {
         let runForever = SKAction.repeatForever(animation)
         
         player.run(runForever)
+    }
+    
+    func createSky() {
+        //we'll be creating the sky from colored nodes and changing their anchor points so that they are measured from the center top.
+        let topSky = SKSpriteNode(color: UIColor(hue: 0.55, saturation: 0.14, brightness: 0.97, alpha: 1), size: CGSize(width: frame.width, height: frame.height * 0.67))
+        topSky.anchorPoint = CGPoint(x: 0.5, y: 1)
+        
+        let bottomSky = SKSpriteNode(color: UIColor(hue: 0.55, saturation: 0.16, brightness: 0.96, alpha: 1), size: CGSize(width: frame.width, height: frame.height * 0.33))
+        bottomSky.anchorPoint = CGPoint(x: 0.5, y: 1)
+        
+        topSky.position = CGPoint(x: frame.midX, y: frame.height)
+        bottomSky.position = CGPoint(x: frame.midX, y: bottomSky.frame.height)
+        
+        addChild(topSky)
+        addChild(bottomSky)
+        
+        bottomSky.zPosition = -40
+        topSky.zPosition = -40
+    }
+    
+    func createBackground(){
+    //we need the mountains to scroll off the screen and leave nothing behind, so they have to scroll to the left indefinitiely. We'll do this by creating two sets of mountains, both moving left, and when one moves off screen, we'll move it all the way to the other side of the screen to start moving again.
+        
+        let backgroundTexture = SKTexture(imageNamed: "background")
+        
+        for i in 0 ... 1 {
+            let background = SKSpriteNode(texture: backgroundTexture)
+            
+            //in front of the sky, which is -40
+            background.zPosition = -30
+            
+            //position it from the left edge - background will be fully off the screen when the X position = 0 - background.size.width
+            background.anchorPoint = CGPoint.zero
+            
+            //minus one to avoid any tiny little gaps between the mountain
+            background.position = CGPoint(x: (backgroundTexture.size().width * CGFloat(i)) - CGFloat(1 * i), y: 100)
+            addChild(background)
+            
+            //animate the mountains to move to the left by a distance equal to it's width over 20 seconds, then back to the right by the same amount, immediately.
+
+            let moveLeft = SKAction.moveBy(x: -backgroundTexture.size().width, y: 0, duration: 20)
+            let moveReset = SKAction.moveBy(x: backgroundTexture.size().width, y: 0, duration: 0)
+            let moveLoop = SKAction.sequence([moveLeft, moveReset])
+            let moveForever = SKAction.repeatForever(moveLoop)
+            
+            //loop the animation endlessly
+            background.run(moveForever)
+        }
     }
 }
